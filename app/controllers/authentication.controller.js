@@ -1,3 +1,44 @@
+import bcryptjs from "bcryptjs";
+
+const usuarios = [{
+    user: "admin",
+    password: "$2a$05$knuCvSpcFErS5MhCP68diuWkU0u6CkQZHxroi1SKoQJA2uTdxmacS" // La contraseña precreada encriptada con Vigenere y codificada en Base64
+}]
+
+async function login(req, res) {
+
+}
+
+// Función de registro (cambio de contraseña)
+async function register(req, res) {
+    console.log(req.body)
+    const user = req.body.user;
+    const password = req.body.password;
+
+    if(!user || !password){
+        return res.status(400).send({status: "Error", message:"Los campos estan incompletos"})
+    }
+    const usuariosARevisar = usuarios.find(usuario => usuario.user === user)
+    if(usuariosARevisar){
+       return res.status(400).send({status: "Error", message:"Este usuario ya existe"})
+    }
+    const salt = await bcryptjs.genSalt(5)
+    const hashPassword = await bcryptjs.hash(password,salt)
+    const nuevoUsuario = {
+        user, password : hashPassword
+    }
+    usuarios.push(nuevoUsuario);
+    console.log(usuarios);
+
+    return res.status(201).send({status:"ok", message:`usuario ${nuevoUsuario.user}} agregado`, redirect:"/"})
+}
+
+export const methods = {
+    login,
+    register
+};
+
+/* codigo completo pero da fallas
 // Función para codificar a Base64
 function toBase64(str) {
     return Buffer.from(str, 'utf-8').toString('base64');
@@ -87,4 +128,4 @@ function decryptVigenere(encryptedText, key) {
     }
     console.log(`Texto encriptado: ${encryptedText} | Texto desencriptado: ${decryptedText}`);
     return decryptedText;
-}
+}*/
