@@ -1,16 +1,41 @@
 import bcryptjs from "bcryptjs";
+import jsonwebtoken from "jsonwebtoken";
+import dotenv from "dotenv"; //libreria para esconder contraseñas
 
-const usuarios = [{
+dotenv.config();
+
+export const usuarios = [{
     user: "admin",
     password: "$2a$05$knuCvSpcFErS5MhCP68diuWkU0u6CkQZHxroi1SKoQJA2uTdxmacS" // La contraseña precreada encriptada con Vigenere y codificada en Base64
 }]
 
 async function login(req, res) {
-
+    console.log(req.body)
+    const user = req.body.user;
+    const password = req.body.password;
+    if(!user || !password){
+        return res.status(400).send({status: "Error", message:"Los campos estan incompletos"})
+    }
+    const usuariosARevisar = usuarios.find(usuario => usuario.user === user)
+    if(!usuariosARevisar){
+       return res.status(400).send({status: "Error", message:"Algun campo incorrecto!"})
+    }
+    const loginCorrecto = await bcryptjs.compare(password,usuariosARevisar.password)
+    if(!loginCorrecto){
+        return res.status(400).send({status: "Error", message:"Algun campo incorrecto!"})
+    }
+    const token = jsonwebtoken.sign(
+        {user:usuariosARevisar.user},process.env.JWT_SECRET,{expiresIn:process.env.JWT_EXPIRATION})
+        const cookieOption = {
+            expires: new Date (Date.now() + process.env.JWT_COOKIE_EXPIRES*24*60*60*1000), //este calculo raro para transformar la unidad en dias
+            path: "/"
+        }
+        res.cookie("jwt", token, cookieOption)
+        res.send({status:"ok", message:"Usuario loggeado correctamente", redirect:"/admin"})
 }
 
 // Función de registro (cambio de contraseña)
-async function register(req, res) {
+/*async function register(req, res) {
     console.log(req.body)
     const user = req.body.user;
     const password = req.body.password;
@@ -31,11 +56,36 @@ async function register(req, res) {
     console.log(usuarios);
 
     return res.status(201).send({status:"ok", message:`usuario ${nuevoUsuario.user}} agregado`, redirect:"/"})
+}*/
+
+async function changePassword(req, res) {
+    console.log(req.body);
+    const user = req.body.user;
+    const password = req.body.password;
+
+    if (!user || !password) {
+        return res.status(400).send({status: "Error", message: "Los campos están incompletos"});
+    }
+
+    // Buscar el usuario existente
+    const usuarioExistente = usuarios.find(usuario => usuario.user === user);
+    if (!usuarioExistente) {
+        return res.status(400).send({status: "Error", message: "Este usuario no existe"});
+    }
+
+    // Generar y actualizar la nueva contraseña
+    const salt = await bcryptjs.genSalt(5);
+    const hashPassword = await bcryptjs.hash(password, salt);
+    usuarioExistente.password = hashPassword; // Actualizar la contraseña del usuario existente
+
+    console.log(usuarios);
+
+    return res.status(200).send({status: "ok", message: `Contraseña de ${usuarioExistente.user} actualizada`, redirect: "/"});
 }
 
 export const methods = {
     login,
-    register
+    changePassword
 };
 
 /* codigo completo pero da fallas
